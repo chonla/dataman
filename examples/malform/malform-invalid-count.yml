@@ -1,0 +1,7 @@
+export:
+    target: console://csv
+    count: 0
+    fields:
+        - name: Static Number
+          value: 1
+          type: integer

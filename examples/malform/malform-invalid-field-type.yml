@@ -1,0 +1,10 @@
+export:
+    target: console://csv
+    count: 1
+    fields:
+        - name: This field type is valid
+          value: 1
+          type: integer
+        - name: This field type is invalid
+          value: 1
+          type: block

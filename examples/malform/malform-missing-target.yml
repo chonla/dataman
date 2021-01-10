@@ -1,0 +1,6 @@
+export:
+    count: 10
+    fields:
+        - name: Static Number
+          value: 1
+          type: integer
