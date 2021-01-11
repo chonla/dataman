@@ -1,0 +1,42 @@
+# Datasets path
+#
+# Path that store custom dataset files
+datasets: ./datasets
+
+export:
+
+# Target dialect
+#
+# <protocol>://<target-spec>
+#
+# Supported protocols
+# - console
+# - file
+#
+# Target spec
+# 
+# [<object-name>.]<ext>
+#
+# For console, object-name defines table name in sql and ext defines content type.
+#
+# For file, object-name defines table name in sql and ext defines content type.
+# If object-name contains path, base name of object-name will be used as object-name.
+#
+# Supported formats
+# - csv
+# - tsv
+# - sql
+# - json
+#
+# Examples
+# "console://csv" will randomize data in csv format and print them to console
+# "file://./exported-file.csv" will randomize data in csv format and save them to file named "exported-file.csv" in "./" directory
+    target: console://json
+
+# Count represents the number of data to be exported.
+    count: 10
+
+    fields:
+        - name: Static Number
+          value: 10
+          type: integer

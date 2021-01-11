@@ -3,7 +3,10 @@ package dataman
 import (
 	"dataman/config"
 	"dataman/filesys"
+	"dataman/writer"
 	"errors"
+	"os"
+	"path/filepath"
 
 	"github.com/fatih/color"
 )
@@ -11,6 +14,7 @@ import (
 // Dataman is an application
 type Dataman struct {
 	configLoader *config.Loader
+	writer       writer.IWriter
 }
 
 // New creates a new app instance
@@ -18,6 +22,7 @@ func New() *Dataman {
 	file := filesys.New()
 	return &Dataman{
 		configLoader: config.New(file),
+		writer:       nil,
 	}
 }
 
@@ -42,10 +47,46 @@ func (d *Dataman) Generate(configFile string) error {
 		return err
 	}
 
+	target, _ := conf.ParseTarget(conf.Export.Target)
+
+	var output *os.File
+	var contentType string
+	switch {
+	case target.Console != nil:
+		output = os.Stdout
+		contentType = target.Console.Type
+	}
+
+	switch contentType {
+	case "json":
+		d.writer = writer.NewJSONWriter(output)
+	case "csv":
+		d.writer = writer.NewXSVWriter(output, ",")
+	case "tsv":
+		d.writer = writer.NewXSVWriter(output, "\t")
+	case "sql":
+		ext := filepath.Ext(configFile)
+		objectName := filepath.Base(configFile[:len(configFile)-len(ext)])
+
+		d.writer = writer.NewSQLWriter(output, objectName)
+	}
+
 	return d.generate(conf)
 }
 
 func (d *Dataman) generate(config *config.Config) error {
+	var rowIndex int64
+
+	for rowIndex = 0; rowIndex < config.Export.Count; rowIndex++ {
+
+	}
+
+	err := d.writer.Write([]string{"hello", "test"}, []map[string]interface{}{{"hello": "world", "test": int64(1)}})
+	if err != nil {
+		return err
+	}
+	d.writer.Close()
+
 	return nil
 }
 
