@@ -8,9 +8,10 @@ type Config struct {
 
 // ExportConfig represents configuration in export section
 type ExportConfig struct {
-	Target string        `yaml:"target"`
-	Count  int64         `yaml:"count"`
-	Fields []FieldConfig `yaml:"fields"`
+	Target    string            `yaml:"target"`
+	Count     int64             `yaml:"count"`
+	Variables map[string]string `yml:"variables,omitempty"`
+	Fields    []FieldConfig     `yaml:"fields"`
 }
 
 // FieldConfig represents configuration for exported field

@@ -4,6 +4,7 @@ import (
 	"dataman/cast"
 	"dataman/config"
 	"dataman/filesys"
+	"dataman/varmap"
 	"dataman/writer"
 	"errors"
 	"fmt"
@@ -108,16 +109,19 @@ func (d *Dataman) newRow(index int64, config *config.Config) map[string]interfac
 	sessionVars := map[string]string{
 		"session.index": fmt.Sprintf("%d", index+1),
 	}
+
+	varMap := varmap.Import(sessionVars, config.Export.Variables)
+
 	output := map[string]interface{}{}
 	for _, field := range config.Export.Fields {
-		output[field.Name] = d.createValue(field, sessionVars)
+		output[field.Name] = d.createValue(field, varMap)
 	}
 	return output
 }
 
-func (d *Dataman) createValue(field config.FieldConfig, sessionVariables map[string]string) interface{} {
+func (d *Dataman) createValue(field config.FieldConfig, varMap map[string]string) interface{} {
 	variables := d.captureVariables(field.Value)
-	resolvedVariables := d.resolveVariables(variables, sessionVariables)
+	resolvedVariables := d.resolveVariables(variables, varMap)
 	result := field.Value
 
 	for varName, varValue := range resolvedVariables {
@@ -151,8 +155,8 @@ func (d *Dataman) captureVariables(template string) []string {
 	return []string{}
 }
 
-func (d *Dataman) resolveVariables(variables []string, sessionVariables map[string]string) map[string]string {
-	return sessionVariables
+func (d *Dataman) resolveVariables(variables []string, varMap map[string]string) map[string]string {
+	return varMap
 }
 
 // Err colorizes standard error message
