@@ -47,7 +47,8 @@ func New() *Dataman {
 		writer:       nil,
 		caster:       caster,
 		functions: map[string]fn.ResolverFn{
-			"fn.rowNumber":       fh.RowNumber,
+			"fn.rowSequence":     fh.RowSequence,
+			"fn.dateSequence":    fh.DateSequence,
 			"fn.number":          fh.Number,
 			"fn.decimal":         fh.Decimal,
 			"fn.date":            fh.Date,
