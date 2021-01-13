@@ -1,0 +1,52 @@
+# Datasets path
+#
+# Path that store custom dataset files
+datasets: ./datasets
+
+export:
+  # Target dialect
+  #
+  # <protocol>://<target-spec>
+  #
+  # Supported protocols
+  # - console
+  # - file
+  #
+  # Target spec
+  #
+  # [<object-name>.]<ext>
+  #
+  # For console, object-name defines table name in sql and ext defines content type.
+  #
+  # For file, object-name defines table name in sql and ext defines content type.
+  # If object-name contains path, base name of object-name will be used as object-name.
+  #
+  # Supported formats
+  # - csv
+  # - tsv
+  # - sql
+  # - json
+  #
+  # Examples
+  # "console://csv" will randomize data in csv format and print them to console
+  # "file://./exported-file.csv" will randomize data in csv format and save them to file named "exported-file.csv" in "./" directory
+  target: console://csv
+
+  # Count represents the number of data to be exported.
+  count: 10
+
+  variables:
+    var1: ${fn.date}
+    var2: ${fn.date:"2020-01-04"}
+    var3: ${fn.date:"2019-01-04","2020-01-04"}
+
+  fields:
+    - name: Just random a date
+      value: ${var.var1}
+      type: string
+    - name: Just random a date from epoch to given date
+      value: ${var.var2}
+      type: string
+    - name: Random a date from min and max date
+      value: ${var.var3}
+      type: string

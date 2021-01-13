@@ -169,6 +169,13 @@ func (d *Dataman) createValue(field config.FieldConfig, varMap map[string]string
 		resolvedValue = result
 	}
 
+	for _, layout := range field.Layout {
+		resolvedValue, err = d.pipe(resolvedValue, layout)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	return resolvedValue, nil
 }
 
@@ -229,6 +236,25 @@ func (d *Dataman) resolveVariables(varMap map[string]string) (map[string]string,
 		return d.resolveVariables(varMap)
 	}
 	return varMap, nil
+}
+
+func (d *Dataman) pipe(s interface{}, pipeFn string) (interface{}, error) {
+	value := s
+	pipeCall := strings.SplitN(pipeFn, ":", 2)
+	pipeName := fmt.Sprintf("pipe.%s", strings.TrimSpace(pipeCall[0]))
+
+	if resolver, ok := supportedPipes[pipeName]; ok {
+		if len(pipeCall) > 1 {
+			pipeArgs := strings.TrimSpace(pipeCall[1])
+			value = resolver(value, args.Parse(pipeArgs))
+		} else {
+			value = resolver(value, []string{})
+		}
+	} else {
+		return "", fmt.Errorf("Unable to resolve pipe %s", pipeName)
+	}
+
+	return value, nil
 }
 
 func (d *Dataman) parseFunc(fn string) (fn.ResolverFn, []string, error) {

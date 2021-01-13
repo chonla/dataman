@@ -2,6 +2,7 @@ package random
 
 import (
 	"errors"
+	"math"
 	"reflect"
 	"time"
 )
@@ -36,6 +37,9 @@ func New(r IRand) *Random {
 
 // CloseInt returns random integer range [0, max]
 func (r *Random) CloseInt(max int64) int64 {
+	if max >= math.MaxInt64 {
+		max = math.MaxInt64 - 2
+	}
 	return r.random.Int63n(max + 1)
 }
 
@@ -124,6 +128,7 @@ func (r *Random) DateBetween(min, max time.Time) time.Time {
 	}
 	delta := max.Sub(min)
 	var duration int64
+
 	duration = r.CloseInt(delta.Nanoseconds())
 	offset := time.Duration(duration)
 	return min.Add(offset)

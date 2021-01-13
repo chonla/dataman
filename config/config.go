@@ -16,9 +16,10 @@ type ExportConfig struct {
 
 // FieldConfig represents configuration for exported field
 type FieldConfig struct {
-	Name  string `yaml:"name"`
-	Value string `yaml:"value"`
-	Type  string `yaml:"type,omitempty"`
+	Name   string   `yaml:"name"`
+	Value  string   `yaml:"value"`
+	Type   string   `yaml:"type,omitempty"`
+	Layout []string `yaml:"layout,omitempty"`
 }
 
 // ParsedTarget is structured target
