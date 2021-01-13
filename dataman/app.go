@@ -6,14 +6,19 @@ import (
 	"dataman/config"
 	"dataman/filesys"
 	"dataman/fn"
+	"dataman/pipe"
+	"dataman/random"
 	"dataman/varmap"
 	"dataman/writer"
 	"errors"
 	"fmt"
+	"io/ioutil"
+	"math/rand"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/fatih/color"
 )
@@ -23,16 +28,38 @@ type Dataman struct {
 	configLoader *config.Loader
 	writer       writer.IWriter
 	caster       cast.ICaster
+	functions    map[string]fn.ResolverFn
+	pipes        map[string]pipe.ResolverPipe
+	datasets     map[string][]string
+	rnd          *random.Random
 }
 
 // New creates a new app instance
 func New() *Dataman {
 	file := filesys.New()
 	caster := cast.New()
+	rnd := random.New(rand.New(rand.NewSource(time.Now().UnixNano())))
+	fh := fn.New(rnd)
+	ph := pipe.New()
+
 	return &Dataman{
 		configLoader: config.New(file),
 		writer:       nil,
 		caster:       caster,
+		functions: map[string]fn.ResolverFn{
+			"fn.rowNumber":       fh.RowNumber,
+			"fn.number":          fh.Number,
+			"fn.decimal":         fh.Decimal,
+			"fn.date":            fh.Date,
+			"fn.dateRange":       fh.DateRange,
+			"fn.dateRangeOffset": fh.DateRangeOffset,
+		},
+		pipes: map[string]pipe.ResolverPipe{
+			"pipe.decimalFormat": ph.DecimalFormat,
+			"pipe.dateFormat":    ph.DateFormat,
+		},
+		datasets: map[string][]string{},
+		rnd:      rnd,
 	}
 }
 
@@ -46,6 +73,34 @@ func (d *Dataman) Validate(configFile string) error {
 	return conf.Validate()
 }
 
+func (d *Dataman) LoadDatasets(path string) error {
+	files, err := filepath.Glob(fmt.Sprintf("%s/*.txt", path))
+	if err != nil {
+		return err
+	}
+
+	for _, file := range files {
+		_, fileName := filepath.Split(file)
+		datasetName := fileName[:len(fileName)-len(filepath.Ext(fileName))]
+		if err = d.LoadDataset(datasetName, file); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (d *Dataman) LoadDataset(name, path string) error {
+	dataByte, err := ioutil.ReadFile(path)
+	if err != nil {
+		return err
+	}
+
+	data := strings.Split(string(dataByte), "\n")
+	d.datasets[fmt.Sprintf("data.%s", name)] = data
+	return nil
+}
+
 // Generate a random content from configFile
 func (d *Dataman) Generate(configFile string) error {
 	conf, err := d.configLoader.Load(configFile)
@@ -54,6 +109,10 @@ func (d *Dataman) Generate(configFile string) error {
 	}
 
 	if err = conf.Validate(); err != nil {
+		return err
+	}
+
+	if err = d.LoadDatasets(conf.DatasetPath); err != nil {
 		return err
 	}
 
@@ -131,6 +190,7 @@ func (d *Dataman) newRow(index int64, config *config.Config) (map[string]interfa
 func (d *Dataman) createValue(field config.FieldConfig, varMap map[string]string) (interface{}, error) {
 	variables := d.captureVariables(field.Value)
 	funcs := d.captureFunctions(field.Value)
+	data := d.captureData(field.Value)
 
 	resolvedVariables, err := d.resolveVariables(varMap)
 	if err != nil {
@@ -145,6 +205,17 @@ func (d *Dataman) createValue(field config.FieldConfig, varMap map[string]string
 			result = strings.ReplaceAll(result, targetVarName, varValue)
 		} else {
 			return nil, fmt.Errorf("Unable to resolve variable %s", varName)
+		}
+	}
+
+	if len(data) > 0 {
+		for _, dataName := range data {
+			if dataValue, err := d.rnd.Element(d.datasets[dataName]); err == nil {
+				targetVarName := fmt.Sprintf("${%s}", dataName)
+				result = strings.ReplaceAll(result, targetVarName, dataValue.(string))
+			} else {
+				return nil, err
+			}
 		}
 	}
 
@@ -179,6 +250,10 @@ func (d *Dataman) createValue(field config.FieldConfig, varMap map[string]string
 	return resolvedValue, nil
 }
 
+func (d *Dataman) captureData(template string) []string {
+	return d.capture(template, "data")
+}
+
 func (d *Dataman) captureVariables(template string) []string {
 	return d.capture(template, "var")
 }
@@ -205,6 +280,7 @@ func (d *Dataman) resolveVariables(varMap map[string]string) (map[string]string,
 	for k, v := range varMap {
 		variables := d.captureVariables(v)
 		funcs := d.captureFunctions(v)
+		data := d.captureData(v)
 		result := v
 		if len(variables) > 0 {
 			for _, varName := range variables {
@@ -218,15 +294,49 @@ func (d *Dataman) resolveVariables(varMap map[string]string) (map[string]string,
 			varMap[k] = result
 			variablesFound = true
 		}
-		if len(funcs) > 0 {
-			for _, fnName := range funcs {
-				if fnValue, fnArgs, err := d.parseFunc(fnName); err == nil {
-					targetVarName := fmt.Sprintf("${%s}", fnName)
-					result = strings.ReplaceAll(result, targetVarName, fnValue(fnArgs, varMap))
+
+		if len(data) > 0 {
+			for _, dataName := range data {
+				if dataValue, err := d.rnd.Element(d.datasets[dataName]); err == nil {
+					targetVarName := fmt.Sprintf("${%s}", dataName)
+					result = strings.ReplaceAll(result, targetVarName, dataValue.(string))
 				} else {
 					return nil, err
 				}
 			}
+			varMap[k] = result
+			variablesFound = true
+		}
+
+		if len(funcs) > 0 {
+			var targetValue string
+
+			for _, fnName := range funcs {
+				if fnValue, fnArgs, err := d.parseFunc(fnName); err == nil {
+					targetVarName := fmt.Sprintf("${%s}", fnName)
+					targetValue = fnValue(fnArgs, varMap)
+					result = strings.ReplaceAll(result, targetVarName, targetValue)
+				} else {
+					return nil, err
+				}
+			}
+
+			// Special hook when there is only one function declared and function return objects
+			// Apply only in variables part
+			if len(funcs) == 1 {
+				fnCall := strings.SplitN(funcs[0], ":", 2)
+				switch fnCall[0] {
+				case "fn.dateRange", "fn.dateRangeOffset":
+					dateRange := strings.Split(targetValue, " - ")
+					varMap[fmt.Sprintf("%s.from", k)] = dateRange[0]
+					varMap[fmt.Sprintf("%s.to", k)] = dateRange[1]
+				case "fn.numberRange":
+					numberRange := strings.Split(targetValue, " - ")
+					varMap[fmt.Sprintf("%s.from", k)] = numberRange[0]
+					varMap[fmt.Sprintf("%s.to", k)] = numberRange[1]
+				}
+			}
+
 			varMap[k] = result
 			variablesFound = true
 		}
@@ -243,7 +353,7 @@ func (d *Dataman) pipe(s interface{}, pipeFn string) (interface{}, error) {
 	pipeCall := strings.SplitN(pipeFn, ":", 2)
 	pipeName := fmt.Sprintf("pipe.%s", strings.TrimSpace(pipeCall[0]))
 
-	if resolver, ok := supportedPipes[pipeName]; ok {
+	if resolver, ok := d.pipes[pipeName]; ok {
 		if len(pipeCall) > 1 {
 			pipeArgs := strings.TrimSpace(pipeCall[1])
 			value = resolver(value, args.Parse(pipeArgs))
@@ -260,7 +370,7 @@ func (d *Dataman) pipe(s interface{}, pipeFn string) (interface{}, error) {
 func (d *Dataman) parseFunc(fn string) (fn.ResolverFn, []string, error) {
 	result := strings.SplitN(fn, ":", 2)
 
-	if resolver, ok := supportedFunctions[result[0]]; ok {
+	if resolver, ok := d.functions[result[0]]; ok {
 		if len(result) > 1 {
 			return resolver, args.Parse(result[1]), nil
 		}

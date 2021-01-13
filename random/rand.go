@@ -167,3 +167,17 @@ func (r *Random) DateRangeBetween(min, max time.Time) Period {
 		To:   date1,
 	}
 }
+
+// DateRangeBetweenByOffset return a random date in range [min, max] and range it with random offset
+func (r *Random) DateRangeBetweenByOffset(min, max time.Time, offsetDays int64) Period {
+	date1 := r.DateBetween(min, max)
+	duration := r.CloseInt(offsetDays)
+
+	offset := time.Duration(duration * int64(time.Hour*24))
+	date2 := date1.Add(offset)
+
+	return Period{
+		From: date2,
+		To:   date1,
+	}
+}

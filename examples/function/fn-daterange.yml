@@ -1,0 +1,73 @@
+# Datasets path
+#
+# Path that store custom dataset files
+datasets: ./datasets
+
+export:
+  # Target dialect
+  #
+  # <protocol>://<target-spec>
+  #
+  # Supported protocols
+  # - console
+  # - file
+  #
+  # Target spec
+  #
+  # [<object-name>.]<ext>
+  #
+  # For console, object-name defines table name in sql and ext defines content type.
+  #
+  # For file, object-name defines table name in sql and ext defines content type.
+  # If object-name contains path, base name of object-name will be used as object-name.
+  #
+  # Supported formats
+  # - csv
+  # - tsv
+  # - sql
+  # - json
+  #
+  # Examples
+  # "console://csv" will randomize data in csv format and print them to console
+  # "file://./exported-file.csv" will randomize data in csv format and save them to file named "exported-file.csv" in "./" directory
+  target: console://csv
+
+  # Count represents the number of data to be exported.
+  count: 10
+
+  variables:
+    var1: ${fn.dateRange}
+    var2: ${fn.dateRange:"2020-01-04"}
+    var3: ${fn.dateRange:"2019-01-04","2020-01-04"}
+    var4: ${fn.dateRangeOffset:50}
+    var5: ${fn.dateRangeOffset:"2019-01-04",50}
+    var6: ${fn.dateRangeOffset:"2019-01-04","2020-01-04",50}
+
+  fields:
+    - name: Just random a date range
+      value: ${var.var1}
+      type: string
+    - name: Just random a date range from epoch to given date
+      value: ${var.var2}
+      type: string
+    - name: Random a date range from min and max date
+      value: ${var.var3}
+      type: string
+    - name: Get only from part
+      value: ${var.var3.from}
+      type: string
+    - name: Get only to part
+      value: ${var.var3.to}
+      type: string
+    - name: Random a date range from max date by random offset
+      value: ${var.var4}
+      type: string
+    - name: Random a date range from min and max date by random offset
+      value: ${var.var5}
+      type: string
+    - name: Get only from part from date range offset
+      value: ${var.var6.from}
+      type: string
+    - name: Get only to part from date range offset
+      value: ${var.var6.to}
+      type: string

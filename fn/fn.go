@@ -2,8 +2,6 @@ package fn
 
 import (
 	"dataman/random"
-	"math/rand"
-	"time"
 )
 
 // ResolverFn is resolver function
@@ -15,8 +13,8 @@ type Fn struct {
 }
 
 // New creates a new function handler
-func New() *Fn {
+func New(rnd *random.Random) *Fn {
 	return &Fn{
-		rnd: random.New(rand.New(rand.NewSource(time.Now().UnixNano()))),
+		rnd: rnd,
 	}
 }
