@@ -38,7 +38,7 @@ func New(r IRand) *Random {
 // CloseInt returns random integer range [0, max]
 func (r *Random) CloseInt(max int64) int64 {
 	if max >= math.MaxInt64 {
-		max = math.MaxInt64 - 2
+		max = math.MaxInt64 - 1
 	}
 	return r.random.Int63n(max + 1)
 }
@@ -177,7 +177,7 @@ func (r *Random) DateRangeBetweenByOffset(min, max time.Time, offsetDays int64) 
 	date2 := date1.Add(offset)
 
 	return Period{
-		From: date2,
-		To:   date1,
+		From: date1,
+		To:   date2,
 	}
 }

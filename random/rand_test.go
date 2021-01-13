@@ -2,6 +2,7 @@ package random_test
 
 import (
 	"dataman/random"
+	"math"
 	"testing"
 	"time"
 
@@ -58,6 +59,23 @@ func TestCallingCloseIntShouldCallInt63nWithGivenMaxPlus1(t *testing.T) {
 	mockMaxValue := int64(1000)
 	expectedResultValue := int64(777)
 	expectedMaxValue := int64(1001)
+
+	mockRandom := new(MockRandom)
+
+	mockRandom.On("Seed", mock.AnythingOfType("int64"))
+	mockRandom.On("Int63n", expectedMaxValue).Return(expectedResultValue)
+
+	r := random.New(mockRandom)
+	result := r.CloseInt(mockMaxValue)
+
+	mockRandom.AssertExpectations(t)
+	assert.Equal(t, expectedResultValue, result)
+}
+
+func TestCallingCloseIntWithMaxIntShouldCallInt63nWithGivenMax(t *testing.T) {
+	var mockMaxValue int64 = math.MaxInt64
+	expectedResultValue := int64(777)
+	var expectedMaxValue int64 = math.MaxInt64
 
 	mockRandom := new(MockRandom)
 
@@ -517,6 +535,34 @@ func TestCallingDateRangeBetweenWithMinMaxShouldReturnTheRandomDatePeriodEvenRan
 
 	r := random.New(mockRandom)
 	result := r.DateRangeBetween(mockMinDate, mockMaxDate)
+
+	mockRandom.AssertExpectations(t)
+	assert.Equal(t, expectedResultValue, result)
+}
+
+func TestCallingDateRangeBetweenByOffsetWithMinMaxShouldReturnTheRandomDatePeriod(t *testing.T) {
+	mockMinDate, _ := time.Parse(time.RFC3339Nano, "2006-01-02T00:00:00.000000000Z")
+	mockMaxDate, _ := time.Parse(time.RFC3339Nano, "2007-12-31T23:59:59.999999999Z")
+	expectedMaxNanosecValue := int64(62985600000000000)
+	expectOffset := int64(100)
+	mockRandomFromNanoValue := int64(41234567890123456)
+	mockRandomOffset := int64(10)
+	expectedFromDate, _ := time.Parse(time.RFC3339Nano, "2007-04-24T06:02:47.890123456Z")
+	duration := time.Duration(mockRandomOffset * int64(time.Hour*24))
+	expectedToDate := expectedFromDate.Add(duration)
+	expectedResultValue := random.Period{
+		From: expectedFromDate,
+		To:   expectedToDate,
+	}
+
+	mockRandom := new(MockRandom)
+
+	mockRandom.On("Seed", mock.AnythingOfType("int64"))
+	mockRandom.On("Int63n", expectOffset+1).Return(mockRandomOffset).Once()
+	mockRandom.On("Int63n", expectedMaxNanosecValue).Return(mockRandomFromNanoValue).Once()
+
+	r := random.New(mockRandom)
+	result := r.DateRangeBetweenByOffset(mockMinDate, mockMaxDate, expectOffset)
 
 	mockRandom.AssertExpectations(t)
 	assert.Equal(t, expectedResultValue, result)

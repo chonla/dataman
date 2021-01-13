@@ -14,6 +14,9 @@ var AppName = "dataman"
 // AppVersion for application version
 var AppVersion = "development"
 
+// GitCommitID for git commit id
+var GitCommitID = "xxxxxx"
+
 // Args for application argument
 type Args struct {
 	Generate *GenerateCmd `arg:"subcommand:generate" help:"generate random data from given configuration"`
@@ -25,14 +28,14 @@ type GenerateCmd struct {
 	FileName string `arg:"positional,required"`
 }
 
-// VerifyCmd for `verify` command
+// ValidateCmd for `validate` command
 type ValidateCmd struct {
 	FileName string `arg:"positional,required"`
 }
 
 // Version returns an application version
 func (Args) Version() string {
-	return fmt.Sprintf("%s version %s", AppName, AppVersion)
+	return fmt.Sprintf("%s version %s (%s)", AppName, AppVersion, GitCommitID[0:6])
 }
 
 func main() {

@@ -38,13 +38,13 @@ func (f *Fn) DateRangeOffset(args []string, varMap map[string]string) string {
 		offsetDays = args[0]
 	} else {
 		if len(args) == 2 {
-			offsetDays = args[0]
-			maxDate = args[1]
+			maxDate = args[0]
+			offsetDays = args[1]
 		} else {
 			if len(args) > 2 {
-				offsetDays = args[0]
-				minDate = args[1]
-				maxDate = args[2]
+				minDate = args[0]
+				maxDate = args[1]
+				offsetDays = args[2]
 			}
 		}
 	}

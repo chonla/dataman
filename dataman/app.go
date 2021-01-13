@@ -125,6 +125,13 @@ func (d *Dataman) Generate(configFile string) error {
 	case target.Console != nil:
 		output = os.Stdout
 		contentType = target.Console.Type
+	case target.File != nil:
+		writer, err := os.Create(target.File.FileName)
+		if err != nil {
+			return err
+		}
+		output = writer
+		contentType = target.File.Type
 	}
 
 	switch contentType {

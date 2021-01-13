@@ -11,6 +11,7 @@ func Get(arr []string, index int, defaultValue string) string {
 	return arr[index]
 }
 
+// IndexOf returns index of pin in haystack array. If not found, return -1.
 func IndexOf(haystack []string, pin string) int {
 	for index, hay := range haystack {
 		if hay == pin {
