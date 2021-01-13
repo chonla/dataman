@@ -2,6 +2,9 @@ package dataman
 
 import "dataman/fn"
 
-var supportedFunctions map[string]fn.Fn = map[string]fn.Fn{
-	"fn.rowNumber": fn.RowNumber,
+var funcHandler = fn.New()
+
+var supportedFunctions map[string]fn.ResolverFn = map[string]fn.ResolverFn{
+	"fn.rowNumber": funcHandler.RowNumber,
+	"fn.number":    funcHandler.Number,
 }

@@ -231,7 +231,7 @@ func (d *Dataman) resolveVariables(varMap map[string]string) (map[string]string,
 	return varMap, nil
 }
 
-func (d *Dataman) parseFunc(fn string) (fn.Fn, []string, error) {
+func (d *Dataman) parseFunc(fn string) (fn.ResolverFn, []string, error) {
 	result := strings.SplitN(fn, ":", 2)
 
 	if resolver, ok := supportedFunctions[result[0]]; ok {

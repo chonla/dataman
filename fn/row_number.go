@@ -5,7 +5,7 @@ import (
 	"fmt"
 )
 
-func RowNumber(args []string, varMap map[string]string) string {
+func (f *Fn) RowNumber(args []string, varMap map[string]string) string {
 	startFrom := int64(0)
 	caster := cast.New()
 	if len(args) > 0 {
