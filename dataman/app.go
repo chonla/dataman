@@ -1,9 +1,11 @@
 package dataman
 
 import (
+	"dataman/args"
 	"dataman/cast"
 	"dataman/config"
 	"dataman/filesys"
+	"dataman/fn"
 	"dataman/varmap"
 	"dataman/writer"
 	"errors"
@@ -87,7 +89,10 @@ func (d *Dataman) generate(config *config.Config) error {
 	records := []map[string]interface{}{}
 
 	for rowIndex = 0; rowIndex < config.Export.Count; rowIndex++ {
-		row := d.newRow(rowIndex, config)
+		row, err := d.newRow(rowIndex, config)
+		if err != nil {
+			return err
+		}
 		records = append(records, row)
 	}
 
@@ -105,28 +110,53 @@ func (d *Dataman) generate(config *config.Config) error {
 	return nil
 }
 
-func (d *Dataman) newRow(index int64, config *config.Config) map[string]interface{} {
+func (d *Dataman) newRow(index int64, config *config.Config) (map[string]interface{}, error) {
 	sessionVars := map[string]string{
 		"session.index": fmt.Sprintf("%d", index+1),
 	}
 
 	varMap := varmap.Import(sessionVars, config.Export.Variables)
 
+	var err error
 	output := map[string]interface{}{}
 	for _, field := range config.Export.Fields {
-		output[field.Name] = d.createValue(field, varMap)
+		output[field.Name], err = d.createValue(field, varMap)
+		if err != nil {
+			return nil, err
+		}
 	}
-	return output
+	return output, nil
 }
 
-func (d *Dataman) createValue(field config.FieldConfig, varMap map[string]string) interface{} {
+func (d *Dataman) createValue(field config.FieldConfig, varMap map[string]string) (interface{}, error) {
 	variables := d.captureVariables(field.Value)
-	resolvedVariables := d.resolveVariables(variables, varMap)
+	funcs := d.captureFunctions(field.Value)
+
+	resolvedVariables, err := d.resolveVariables(varMap)
+	if err != nil {
+		return nil, err
+	}
+
 	result := field.Value
 
-	for varName, varValue := range resolvedVariables {
-		targetVarName := fmt.Sprintf("${%s}", varName)
-		result = strings.ReplaceAll(result, targetVarName, varValue)
+	for _, varName := range variables {
+		if varValue, ok := resolvedVariables[varName]; ok {
+			targetVarName := fmt.Sprintf("${%s}", varName)
+			result = strings.ReplaceAll(result, targetVarName, varValue)
+		} else {
+			return nil, fmt.Errorf("Unable to resolve variable %s", varName)
+		}
+	}
+
+	if len(funcs) > 0 {
+		for _, fnName := range funcs {
+			if fnValue, fnArgs, err := d.parseFunc(fnName); err == nil {
+				targetVarName := fmt.Sprintf("${%s}", fnName)
+				result = strings.ReplaceAll(result, targetVarName, fnValue(fnArgs, varMap))
+			} else {
+				return nil, err
+			}
+		}
 	}
 
 	var resolvedValue interface{}
@@ -139,11 +169,19 @@ func (d *Dataman) createValue(field config.FieldConfig, varMap map[string]string
 		resolvedValue = result
 	}
 
-	return resolvedValue
+	return resolvedValue, nil
 }
 
 func (d *Dataman) captureVariables(template string) []string {
-	re := regexp.MustCompile("\\$\\{([^}]+)\\}")
+	return d.capture(template, "var")
+}
+
+func (d *Dataman) captureFunctions(template string) []string {
+	return d.capture(template, "fn")
+}
+
+func (d *Dataman) capture(template string, prefix string) []string {
+	re := regexp.MustCompile(fmt.Sprintf("\\$\\{(%s\\.[^}]+)\\}", prefix))
 	m := re.FindAllStringSubmatch(template, -1)
 	if len(m) > 0 && len(m[0]) == 2 {
 		matched := []string{}
@@ -155,8 +193,54 @@ func (d *Dataman) captureVariables(template string) []string {
 	return []string{}
 }
 
-func (d *Dataman) resolveVariables(variables []string, varMap map[string]string) map[string]string {
-	return varMap
+func (d *Dataman) resolveVariables(varMap map[string]string) (map[string]string, error) {
+	variablesFound := false
+	for k, v := range varMap {
+		variables := d.captureVariables(v)
+		funcs := d.captureFunctions(v)
+		result := v
+		if len(variables) > 0 {
+			for _, varName := range variables {
+				if varValue, ok := varMap[varName]; ok {
+					targetVarName := fmt.Sprintf("${%s}", varName)
+					result = strings.ReplaceAll(result, targetVarName, varValue)
+				} else {
+					return nil, fmt.Errorf("Unable to resolve variable %s", varName)
+				}
+			}
+			varMap[k] = result
+			variablesFound = true
+		}
+		if len(funcs) > 0 {
+			for _, fnName := range funcs {
+				if fnValue, fnArgs, err := d.parseFunc(fnName); err == nil {
+					targetVarName := fmt.Sprintf("${%s}", fnName)
+					result = strings.ReplaceAll(result, targetVarName, fnValue(fnArgs, varMap))
+				} else {
+					return nil, err
+				}
+			}
+			varMap[k] = result
+			variablesFound = true
+		}
+	}
+	if variablesFound {
+		// resolve repeated var references
+		return d.resolveVariables(varMap)
+	}
+	return varMap, nil
+}
+
+func (d *Dataman) parseFunc(fn string) (fn.Fn, []string, error) {
+	result := strings.SplitN(fn, ":", 2)
+
+	if resolver, ok := supportedFunctions[result[0]]; ok {
+		if len(result) > 1 {
+			return resolver, args.Parse(result[1]), nil
+		}
+		return resolver, []string{}, nil
+	}
+	return nil, nil, fmt.Errorf("Unable to resolve function %s", result[0])
 }
 
 // Err colorizes standard error message

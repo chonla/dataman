@@ -37,16 +37,19 @@ export:
     count: 10
 
     variables:
-        var1: 1
-        var2: Some Text
+        var1: ${fn.rowNumber}
+        var2: ${fn.rowNumber:12}
 
     fields:
-        - name: Row number
-          value: ${session.index}
+        - name: Direct row number
+          value: ${fn.rowNumber}
           type: integer
-        - name: Local Variables
-          value: ${var.var2} ${var.var1}
-          type: string
-        - name: Var1
+        - name: Indirect row number
           value: ${var.var1}
+          type: integer
+        - name: Direct offset row number
+          value: ${fn.rowNumber:100}
+          type: integer
+        - name: Indirect offset row number
+          value: ${var.var2}
           type: integer
