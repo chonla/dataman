@@ -136,7 +136,7 @@ func (d *Dataman) Generate(configFile string) error {
 
 	switch contentType {
 	case "json":
-		d.writer = writer.NewJSONWriter(output)
+		d.writer = writer.NewJSONWriter(output, conf.Export.Pretty)
 	case "csv":
 		d.writer = writer.NewXSVWriter(output, ",")
 	case "tsv":
@@ -145,7 +145,7 @@ func (d *Dataman) Generate(configFile string) error {
 		ext := filepath.Ext(configFile)
 		objectName := filepath.Base(configFile[:len(configFile)-len(ext)])
 
-		d.writer = writer.NewSQLWriter(output, objectName)
+		d.writer = writer.NewSQLWriter(output, objectName, conf.Export.Pretty)
 	}
 
 	return d.generate(conf)

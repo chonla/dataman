@@ -11,6 +11,7 @@ type ExportConfig struct {
 	Target    string            `yaml:"target"`
 	Count     int64             `yaml:"count"`
 	Variables map[string]string `yml:"variables,omitempty"`
+	Pretty    bool              `yaml:"pretty,omitempty"`
 	Fields    []FieldConfig     `yaml:"fields"`
 }
 

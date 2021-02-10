@@ -10,13 +10,15 @@ import (
 type SQLWriter struct {
 	writer     *os.File
 	objectName string
+	pretty     bool
 }
 
 // NewSQLWriter create a new writer writing to console
-func NewSQLWriter(writer *os.File, objectName string) IWriter {
+func NewSQLWriter(writer *os.File, objectName string, pretty bool) IWriter {
 	return &SQLWriter{
 		writer:     writer,
 		objectName: objectName,
+		pretty:     pretty,
 	}
 }
 
@@ -27,7 +29,16 @@ func (w *SQLWriter) Close() error {
 
 // Write content to console
 func (w *SQLWriter) Write(header []string, data []map[string]interface{}) error {
-	initialSQL := fmt.Sprintf("INSERT INTO %s (%s) VALUES", w.objectName, strings.Join(header, ","))
+	comma := ","
+	rowComma := ","
+	initialSQL := fmt.Sprintf("INSERT INTO %s (%s) VALUES", w.objectName, strings.Join(header, comma))
+	insertTemplate := "%s %s;"
+	if w.pretty {
+		comma = ", "
+		rowComma = ",\n    "
+		initialSQL = fmt.Sprintf("INSERT INTO %s\n    (%s)\nVALUES", w.objectName, strings.Join(header, comma))
+		insertTemplate = "%s\n    %s;"
+	}
 
 	inserts := []string{}
 
@@ -46,10 +57,10 @@ func (w *SQLWriter) Write(header []string, data []map[string]interface{}) error 
 				}
 			}
 		}
-		inserts = append(inserts, fmt.Sprintf("(%s)", strings.Join(buffer, ",")))
+		inserts = append(inserts, fmt.Sprintf("(%s)", strings.Join(buffer, comma)))
 	}
 
-	sql := fmt.Sprintf("%s %s;", initialSQL, strings.Join(inserts, ","))
+	sql := fmt.Sprintf(insertTemplate, initialSQL, strings.Join(inserts, rowComma))
 	_, err := w.writer.WriteString(sql)
 	if err != nil {
 		return err
